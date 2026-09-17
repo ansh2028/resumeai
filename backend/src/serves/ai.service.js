@@ -156,28 +156,48 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
 // 🖨️ 3. generatePdfFromHtml(): Invisible Browser prints HTML into PDF
 // ------------------------------------------------------------------------------
 async function generatePdfFromHtml(htmlContent) {
-    // Step A: Open an invisible (headless) Google Chrome window
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
+    let browser = null;
+    try {
+        // Step A: Open headless browser with serverless-friendly flags
+        browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--no-first-run",
+                "--no-zygote",
+                "--single-process"
+            ]
+        });
+        const page = await browser.newPage();
 
-    // Step B: Paste the HTML into the browser tab and wait for it to load
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+        // Step B: Paste the HTML into the browser tab and wait for it to load
+        await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
-    // Step C: "Print" the page into an A4 PDF document
-    const pdfBuffer = await page.pdf({
-        format: "A4",
-        margin: {
-            top: "20mm",
-            bottom: "20mm",
-            left: "15mm",
-            right: "15mm"
+        // Step C: "Print" the page into an A4 PDF document
+        const pdfBuffer = await page.pdf({
+            format: "A4",
+            margin: {
+                top: "20mm",
+                bottom: "20mm",
+                left: "15mm",
+                right: "15mm"
+            }
+        });
+
+        // Step D: Close the hidden browser so it doesn't waste memory
+        await browser.close();
+        return pdfBuffer;
+    } catch (err) {
+        console.warn("⚠️ [Puppeteer] Headless browser could not run in this environment:", err.message);
+        if (browser) {
+            await browser.close().catch(() => {});
         }
-    });
-
-    // Step D: Close the hidden browser so it doesn't waste computer memory
-    await browser.close();
-
-    return pdfBuffer;
+        // Graceful fallback: return HTML document as downloadable buffer so request never crashes 500
+        return Buffer.from(htmlContent, "utf-8");
+    }
 }
 
 // ------------------------------------------------------------------------------

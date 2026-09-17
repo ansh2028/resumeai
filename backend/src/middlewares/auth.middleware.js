@@ -11,8 +11,8 @@
 const jwt = require("jsonwebtoken");
 
 function authUser(req, res, next) {
-    // 1. Grab the "token" cookie sent by the browser
-    const token = req.cookies?.token;
+    // 1. Grab the "token" either from the browser cookie OR the Authorization header
+    const token = req.cookies?.token || req.headers?.authorization?.replace("Bearer ", "");
 
     if (!token) {
         return res.status(401).json({

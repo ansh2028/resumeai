@@ -53,7 +53,13 @@ async function registerUserController(req, res) {
         );
 
         // Step F: Store the token inside a browser cookie
-        res.cookie("token", token);
+        const isProd = process.env.NODE_ENV === "production";
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax",
+            maxAge: 3600000
+        });
 
         return res.status(201).json({
             message: "User registered successfully!",
@@ -110,7 +116,13 @@ async function loginUserController(req, res) {
         );
 
         // Step E: Set the cookie in the user's browser
-        res.cookie("token", token);
+        const isProd = process.env.NODE_ENV === "production";
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax",
+            maxAge: 3600000
+        });
 
         return res.status(200).json({
             message: "User logged in successfully!",
@@ -133,7 +145,7 @@ async function loginUserController(req, res) {
 // ------------------------------------------------------------------------------
 async function logoutUserController(req, res) {
     try {
-        const token = req.cookies?.token;
+        const token = req.cookies?.token || req.headers?.authorization?.replace("Bearer ", "");
 
         // Step A: Put the token in the blacklist so it can never be used again
         if (token) {
@@ -141,7 +153,12 @@ async function logoutUserController(req, res) {
         }
 
         // Step B: Tell the user's browser to destroy the cookie
-        res.clearCookie("token");
+        const isProd = process.env.NODE_ENV === "production";
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax"
+        });
 
         return res.status(200).json({
             message: "User logged out successfully!"

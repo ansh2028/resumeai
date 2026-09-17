@@ -15,6 +15,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
 // Import route handlers
+
 const authRouter = require("./routes/auht.routes");
 const interviewRouter = require("./routes/interview.routes");
 
@@ -32,7 +33,12 @@ app.use(express.json());
 // 3. Cookie Parser: Automatically reads cookies sent by the browser (req.cookies)
 app.use(cookieParser());
 
-// 4. Connect our route endpoints
+// 4. Root health check endpoint (shows backend status when visited directly)
+app.get("/", (req, res) => {
+    res.status(200).json({ status: "ok", message: "ResumeAI Backend is running smoothly!" });
+});
+
+// 5. Connect our route endpoints
 app.use("/api/auth", authRouter);           // Authentication (Login, Register, Logout)
 app.use("/api/interview", interviewRouter); // Interview strategy, report history & resume PDF
 
