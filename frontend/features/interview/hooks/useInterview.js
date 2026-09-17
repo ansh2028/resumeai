@@ -39,6 +39,10 @@ export const useInterview = () => {
             console.error("Failed to generate interview report:", error);
             const msg = error.response?.data?.message || error.message || "Failed to generate interview report. Please try again.";
             alert(msg);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+                window.location.href = "/login";
+            }
         } finally {
             setLoading(false);
         }
@@ -67,7 +71,11 @@ export const useInterview = () => {
             response = await getAllInterviewReports()
             setReports(response?.interviewReports || [])
         } catch (error) {
-            console.log(error)
+            console.log(error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+                window.location.href = "/login";
+            }
         } finally {
             setLoading(false)
         }
