@@ -1,4 +1,4 @@
-# 🤖 ResumeAI — Explained So Simply Even a 10-Year-Old Can Understand!
+# 🤖 ResumeAI 
 
 Welcome to **ResumeAI**! 🎉  
 This project is an **AI-powered Career Assistant**. It takes a job description and a person's resume, uses smart AI (Google Gemini) to analyze them, tells the candidate their match score, asks them practice interview questions, gives them a day-by-day study roadmap, and can even generate a tailored resume PDF!
