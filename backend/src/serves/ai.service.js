@@ -13,7 +13,6 @@
 // ==============================================================================
 
 const { GoogleGenAI } = require("@google/genai");
-const puppeteer = require("puppeteer");
 
 // Connect to Google Gemini using our API key
 const ai = new GoogleGenAI({
@@ -158,6 +157,9 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
 async function generatePdfFromHtml(htmlContent) {
     let browser = null;
     try {
+        const puppeteerModule = await import("puppeteer");
+        const puppeteer = puppeteerModule.default || puppeteerModule;
+
         // Step A: Open headless browser with serverless-friendly flags
         browser = await puppeteer.launch({
             headless: true,
