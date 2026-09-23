@@ -16,7 +16,11 @@ const PORT = process.env.PORT || 3000;
 // 4. Connect to our cloud database (MongoDB Atlas)
 connectToDB();
 
-// 5. Start listening for incoming visitors on port 3000!
-app.listen(PORT, () => {
-    console.log(`🚀 Server is up and running on http://localhost:${PORT}`);
-});
+// 5. Start listening for incoming visitors on port 3000 (when not running in serverless environment)
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server is up and running on http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;

@@ -14,7 +14,6 @@
   "type": "commonjs",
   "dependencies": {
     "@google/genai": "^2.23.0",
-    "@napi-rs/canvas": "^1.0.9",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -23,7 +22,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.5",
     "multer": "^2.4.0",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "puppeteer": "^25.11.0",
     "zod": "^4.6.5",
     "zod-to-json-schema": "^3.25.2"

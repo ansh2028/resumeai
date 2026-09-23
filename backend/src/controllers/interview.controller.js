@@ -28,9 +28,14 @@ async function generateInterViewReportController(req, res) {
         let resumeText = "";
         if (req.file && req.file.buffer) {
             try {
-                const parser = new pdfParse.PDFParse(Uint8Array.from(req.file.buffer));
-                const resumeContent = await parser.getText();
-                resumeText = resumeContent?.text || "";
+                if (typeof pdfParse === "function") {
+                    const resumeContent = await pdfParse(req.file.buffer);
+                    resumeText = resumeContent?.text || "";
+                } else if (pdfParse && typeof pdfParse.PDFParse === "function") {
+                    const parser = new pdfParse.PDFParse(Uint8Array.from(req.file.buffer));
+                    const resumeContent = await parser.getText();
+                    resumeText = resumeContent?.text || "";
+                }
             } catch (pdfErr) {
                 console.warn("⚠️ [PDF Parser] Warning: Could not extract text from uploaded PDF:", pdfErr.message);
                 // Fallback gracefully so an unusual PDF formatting doesn't fail the entire request
