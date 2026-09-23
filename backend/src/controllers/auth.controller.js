@@ -1,17 +1,27 @@
 // ==============================================================================
-// 🔐 auth.controller.js - USER AUTHENTICATION BRAIN
+// 🔐 auth.controller.js - HIGH-PERFORMANCE AUTHENTICATION CONTROLLER
 // ==============================================================================
-// This file handles everything about user accounts:
-// 1. registerUserController: Creates a new user, hashes password, generates JWT cookie.
-// 2. loginUserController: Checks credentials, creates JWT cookie.
-// 3. logoutUserController: Blacklists current token and deletes cookie from browser.
-// 4. getMeController: Checks who is currently logged in using req.user.
+// Optimized for serverless execution:
+// - Uses lean queries (.lean()) to eliminate Mongoose overhead and cut response time
+// - Normalizes credentials to prevent duplicate account confusion
+// - Ensures clean cookie scoping and reliable JWT authentication
 // ==============================================================================
 
 const userModel = require("../config/models/user.model");
 const bcrypt = require("bcryptjs");
 const jsonwebtoken = require("jsonwebtoken");
 const tokenBlacklistModel = require("../config/models/blacklist.model");
+
+const isProd = process.env.NODE_ENV === "production";
+
+// Standard cookie options
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
+    maxAge: 3600000 // 1 hour
+};
 
 // ------------------------------------------------------------------------------
 // 📝 1. REGISTER A NEW USER
@@ -20,57 +30,67 @@ async function registerUserController(req, res) {
     try {
         const { username, email, password } = req.body;
 
-        // Step A: Check that no fields are left blank
         if (!username || !email || !password) {
             return res.status(400).json({
                 message: "All fields (username, email, password) are required."
             });
         }
 
-        // Step B: Check if someone already took this email or username
-        const isUser = await userModel.findOne({ $or: [{ email }, { username }] });
-        if (isUser) {
+        const cleanUsername = username.trim();
+        const cleanEmail = email.trim().toLowerCase();
+
+        if (cleanUsername.length < 3) {
+            return res.status(400).json({
+                message: "Username must be at least 3 characters long."
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                message: "Password must be at least 6 characters long."
+            });
+        }
+
+        // Fast lean query to check existence
+        const existingUser = await userModel.findOne({
+            $or: [{ email: cleanEmail }, { username: cleanUsername }]
+        }).select("_id").lean();
+
+        if (existingUser) {
             return res.status(400).json({
                 message: "A user with that username or email already exists."
             });
         }
 
-        // Step C: Scramble (hash) the password so it's safe
-        const hash = await bcrypt.hash(password, 10);
+        // Hash password with optimal work factor for cloud execution
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Step D: Save the new user in MongoDB
-        const user = await userModel.create({
-            username,
-            email,
-            password: hash
+        const newUser = await userModel.create({
+            username: cleanUsername,
+            email: cleanEmail,
+            password: hashedPassword
         });
 
-        // Step E: Create a signed JWT VIP wristband that expires in 1 hour
+        // Issue JWT
         const token = jsonwebtoken.sign(
-            { id: user._id },
+            { id: newUser._id, username: newUser.username },
             process.env.JWT_SECRET,
             { expiresIn: "1h" }
         );
 
-        // Step F: Store the token inside a browser cookie
-        const isProd = process.env.NODE_ENV === "production";
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 3600000
-        });
+        res.cookie("token", token, COOKIE_OPTIONS);
 
         return res.status(201).json({
             message: "User registered successfully!",
             user: {
-                _id: user._id,
-                username: user.username,
-                email: user.email
+                _id: newUser._id,
+                username: newUser.username,
+                email: newUser.email
             },
             token
         });
     } catch (error) {
+        console.error("❌ [Register Error]:", error.message);
         return res.status(500).json({
             message: error.message || "Registration failed."
         });
@@ -83,46 +103,46 @@ async function registerUserController(req, res) {
 async function loginUserController(req, res) {
     try {
         const { username, email, password } = req.body;
-        const identifier = email || username;
+        const rawIdentifier = email || username;
 
-        // Step A: Make sure credentials were typed in
-        if (!identifier || !password) {
+        if (!rawIdentifier || !password) {
             return res.status(400).json({
                 message: "Username/Email and password are required."
             });
         }
 
-        // Step B: Search MongoDB for this user
-        const user = await userModel.findOne({ $or: [{ email: identifier }, { username: identifier }] });
+        const identifier = rawIdentifier.trim();
+
+        // Fast lean query with indexed lookup
+        const user = await userModel.findOne({
+            $or: [
+                { email: identifier.toLowerCase() },
+                { username: identifier }
+            ]
+        }).lean();
+
         if (!user) {
             return res.status(404).json({
                 message: "User not found. Please check your credentials or register."
             });
         }
 
-        // Step C: Compare typed password against the encrypted hash in MongoDB
+        // Compare password hash
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(401).json({
-                message: "Invalid password. Please try again."
+                message: "Invalid credentials. Please try again."
             });
         }
 
-        // Step D: Create a signed JWT VIP wristband that lasts 1 hour
+        // Issue JWT
         const token = jsonwebtoken.sign(
-            { id: user._id },
+            { id: user._id, username: user.username },
             process.env.JWT_SECRET,
             { expiresIn: "1h" }
         );
 
-        // Step E: Set the cookie in the user's browser
-        const isProd = process.env.NODE_ENV === "production";
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 3600000
-        });
+        res.cookie("token", token, COOKIE_OPTIONS);
 
         return res.status(200).json({
             message: "User logged in successfully!",
@@ -134,6 +154,7 @@ async function loginUserController(req, res) {
             token
         });
     } catch (error) {
+        console.error("❌ [Login Error]:", error.message);
         return res.status(500).json({
             message: error.message || "Login failed."
         });
@@ -147,23 +168,25 @@ async function logoutUserController(req, res) {
     try {
         const token = req.cookies?.token || req.headers?.authorization?.replace("Bearer ", "");
 
-        // Step A: Put the token in the blacklist so it can never be used again
         if (token) {
-            await tokenBlacklistModel.create({ token });
+            // Fire-and-forget or fast blacklist insertion
+            tokenBlacklistModel.create({ token }).catch(err => {
+                console.warn("⚠️ [Token Blacklist Warning]:", err.message);
+            });
         }
 
-        // Step B: Tell the user's browser to destroy the cookie
-        const isProd = process.env.NODE_ENV === "production";
         res.clearCookie("token", {
             httpOnly: true,
             secure: isProd,
-            sameSite: isProd ? "none" : "lax"
+            sameSite: isProd ? "none" : "lax",
+            path: "/"
         });
 
         return res.status(200).json({
             message: "User logged out successfully!"
         });
     } catch (error) {
+        console.error("❌ [Logout Error]:", error.message);
         return res.status(500).json({
             message: error.message || "Logout failed."
         });
@@ -175,7 +198,12 @@ async function logoutUserController(req, res) {
 // ------------------------------------------------------------------------------
 async function getMeController(req, res) {
     try {
-        const user = await userModel.findById(req.user.id);
+        const userId = req.user?.id || req.user?._id;
+        if (!userId) {
+            return res.status(401).json({ message: "Not authenticated." });
+        }
+
+        const user = await userModel.findById(userId).select("username email createdAt").lean();
         if (!user) {
             return res.status(404).json({
                 message: "User not found."
@@ -184,15 +212,12 @@ async function getMeController(req, res) {
 
         return res.status(200).json({
             message: "User fetched successfully.",
-            user: {
-                _id: user._id,
-                username: user.username,
-                email: user.email
-            }
+            user
         });
     } catch (error) {
+        console.error("❌ [GetMe Error]:", error.message);
         return res.status(500).json({
-            message: error.message || "Failed to fetch user."
+            message: error.message || "Failed to fetch user profile."
         });
     }
 }
@@ -203,4 +228,3 @@ module.exports = {
     logoutUserController,
     getMeController
 };
-

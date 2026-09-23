@@ -1,10 +1,5 @@
 // ==============================================================================
-// 👤 user.model.js - DATABASE BLUEPRINT FOR USER ACCOUNTS
-// ==============================================================================
-// Every user who signs up gets a document in MongoDB formatted by this blueprint:
-// - username: Must be unique (no two users can share the same name).
-// - email: Must be unique and converted to lowercase so casing doesn't cause duplicates.
-// - password: Stored as an encrypted bcrypt hash string for top security.
+// 👤 user.model.js - OPTIMIZED USER MODEL
 // ==============================================================================
 
 const mongoose = require("mongoose");
@@ -12,24 +7,28 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
-        unique: [true, "Username already exists"],
-        required: [true, "Username is required"]
+        unique: true,
+        required: [true, "Username is required"],
+        trim: true,
+        index: true
     },
     email: {
         type: String,
-        unique: [true, "Email already exists"],
+        unique: true,
         lowercase: true,
         trim: true,
-        required: [true, "Email is required"]
+        required: [true, "Email is required"],
+        index: true
     },
     password: {
         type: String,
         required: [true, "Password is required"]
     }
 }, {
-    timestamps: true // Automatically tracks createdAt and updatedAt dates
+    timestamps: true,
+    autoIndex: process.env.NODE_ENV !== "production"
 });
 
-const userModel = mongoose.model("User", userSchema);
+const userModel = mongoose.models.User || mongoose.model("User", userSchema);
 
 module.exports = userModel;

@@ -98,17 +98,21 @@ const interviewReportSchema = new mongoose.Schema({
     preparationPlan: [ preparationPlanSchema ],
     user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users"
+        ref: "User",
+        index: true
     },
     title: {
         type: String,
         required: [ true, "Job title is required" ]
     }
 }, {
-    timestamps: true
-})
+    timestamps: true,
+    autoIndex: process.env.NODE_ENV !== "production"
+});
 
+// High-speed compound index for user's reports list
+interviewReportSchema.index({ user: 1, createdAt: -1 });
 
-const interviewReportModel = mongoose.model("InterviewReport", interviewReportSchema);
+const interviewReportModel = mongoose.models.InterviewReport || mongoose.model("InterviewReport", interviewReportSchema);
 
 module.exports = interviewReportModel;  

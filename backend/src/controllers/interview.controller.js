@@ -92,29 +92,29 @@ async function generateInterViewReportController(req, res) {
  */
 async function getInterviewReportByIdController(req, res) {
     try {
-        const { interviewId } = req.params
-
+        const { interviewId } = req.params;
         const userId = req.user?._id || req.user?.id;
+
         const interviewReport = await interviewReportModel.findOne({ 
             _id: interviewId, 
             ...(userId ? { user: userId } : {}) 
-        }) || await interviewReportModel.findById(interviewId);
+        }).lean() || await interviewReportModel.findById(interviewId).lean();
 
         if (!interviewReport) {
             return res.status(404).json({
                 message: "Interview report not found."
-            })
+            });
         }
 
         return res.status(200).json({
             message: "Interview report fetched successfully.",
             interviewReport
-        })
+        });
     } catch (error) {
-        console.error("Error fetching interview report:", error)
+        console.error("❌ [GetInterviewReportById Error]:", error.message);
         return res.status(500).json({
             message: error.message || "Failed to fetch interview report."
-        })
+        });
     }
 }
 
@@ -123,17 +123,21 @@ async function getInterviewReportByIdController(req, res) {
  */
 async function getAllInterviewReportsController(req, res) {
     try {
-        const interviewReports = await interviewReportModel.find({ user: req.user?._id || req.user?.id }).sort({ createdAt: -1 }).select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan")
+        const userId = req.user?._id || req.user?.id;
+        const interviewReports = await interviewReportModel.find({ user: userId })
+            .sort({ createdAt: -1 })
+            .select("title matchScore createdAt updatedAt")
+            .lean();
 
         return res.status(200).json({
             message: "Interview reports fetched successfully.",
             interviewReports
-        })
+        });
     } catch (error) {
-        console.error("Error fetching all interview reports:", error)
+        console.error("❌ [GetAllInterviewReports Error]:", error.message);
         return res.status(500).json({
             message: error.message || "Failed to fetch interview reports."
-        })
+        });
     }
 }
 
@@ -142,32 +146,34 @@ async function getAllInterviewReportsController(req, res) {
  */
 async function generateResumePdfController(req, res) {
     try {
-        const { interviewReportId } = req.params
+        const { interviewReportId } = req.params;
 
         const interviewReport = await interviewReportModel.findById(interviewReportId)
+            .select("resume jobDescription selfDescription")
+            .lean();
 
         if (!interviewReport) {
             return res.status(404).json({
                 message: "Interview report not found."
-            })
+            });
         }
 
-        const { resume, jobDescription, selfDescription } = interviewReport
+        const { resume, jobDescription, selfDescription } = interviewReport;
 
-        const pdfBuffer = await generateResumePdf({ resume, jobDescription, selfDescription })
+        const pdfBuffer = await generateResumePdf({ resume, jobDescription, selfDescription });
 
         res.set({
             "Content-Type": "application/pdf",
             "Content-Disposition": `attachment; filename=resume_${interviewReportId}.pdf`
-        })
+        });
 
-        return res.send(pdfBuffer)
+        return res.send(pdfBuffer);
     } catch (error) {
-        console.error("Error generating resume PDF:", error)
+        console.error("❌ [GenerateResumePdf Error]:", error.message);
         return res.status(500).json({
             message: error.message || "Failed to generate resume PDF."
-        })
+        });
     }
 }
 
-module.exports = { generateInterViewReportController, getInterviewReportByIdController, getAllInterviewReportsController, generateResumePdfController }
+module.exports = { generateInterViewReportController, getInterviewReportByIdController, getAllInterviewReportsController, generateResumePdfController };
